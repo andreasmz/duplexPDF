@@ -34,30 +34,30 @@ DuplexPDF is configured by environment variables to be easly run in a Docker con
 ### Example configuration on a Synology NAS
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/andreasmz/neurotorch/main/media/dsm_folders.png" style="max-width: 600px;"> <br>
+    <img src="https://raw.githubusercontent.com/andreasmz/duplexPDF/main/media/dsm_folders.png" style="max-width: 600px;"> <br>
     <em>You should create a folder for the logs, the cache and the script (run.py)</em>
 </p> 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/andreasmz/neurotorch/main/media/dsm_script_run.png" style="max-width: 600px;"> <br>
+    <img src="https://raw.githubusercontent.com/andreasmz/duplexPDF/main/media/dsm_script_run.png" style="max-width: 600px;"> <br>
     <em>You need to download the run.py script which installs and runs duplexPDF from PIP </em>
 </p> 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/andreasmz/neurotorch/main/media/dsm_container_creation.png" style="max-width: 600px;"> <br>
+    <img src="https://raw.githubusercontent.com/andreasmz/duplexPDF/main/media/dsm_container_creation.png" style="max-width: 600px;"> <br>
     <em>Creating the container in DSM (You don't need to change the IP adress here)</em>
 </p> 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/andreasmz/neurotorch/main/media/dsm_container_network_cmd.png" style="max-width: 600px;"> <br>
+    <img src="https://raw.githubusercontent.com/andreasmz/duplexPDF/main/media/dsm_container_network_cmd.png" style="max-width: 600px;"> <br>
     <em>Network settings and the command to execute</em>
 </p> 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/andreasmz/neurotorch/main/media/dsm_port_settings.png" style="max-width: 600px;"> <br>
+    <img src="https://raw.githubusercontent.com/andreasmz/duplexPDF/main/media/dsm_port_settings.png" style="max-width: 600px;"> <br>
     <em>Port settings in DSM</em>
 </p> 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/andreasmz/neurotorch/main/media/dsm_volume_settings.png" style="max-width: 600px;"> <br>
+    <img src="https://raw.githubusercontent.com/andreasmz/duplexPDF/main/media/dsm_volume_settings.png" style="max-width: 600px;"> <br>
     <em>Volume settings in DSM</em>
 </p> 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/andreasmz/neurotorch/main/media/dsm_env_settings.png" style="max-width: 600px;"> <br>
+    <img src="https://raw.githubusercontent.com/andreasmz/duplexPDF/main/media/dsm_env_settings.png" style="max-width: 600px;"> <br>
     <em>Environment settings in DSM</em>
 </p> 
