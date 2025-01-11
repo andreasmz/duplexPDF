@@ -36,7 +36,6 @@ class OutgoingFTP(IOutgoing):
 
     def Connect(self, func: Callable|None = None) -> bool:
         global logger
-        logger.info("Connecting to FTP")
         ftp = ftplib.FTP_TLS()
         try:
             ftp.connect(self.ip, self.port, source_address=self.sourceAdress)

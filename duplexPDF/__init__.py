@@ -3,7 +3,7 @@ import sys
 import os
 from pathlib import Path
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 for name, desc in [("duplexPDF_cache", "a folder for the cache files"),
                       ("duplexPDF_log", "a folder for the log"),

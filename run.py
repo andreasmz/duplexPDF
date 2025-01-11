@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-min_version = "1.0.2" # Min Version for DuplexPDF
+min_version = "1.0.3" # Min Version for DuplexPDF
 
 try:
     import duplexPDF
@@ -23,6 +23,7 @@ try:
 
 except ModuleNotFoundError:
     print(subprocess.check_call([sys.executable, "-m", "pip", "install", "duplexPDF"]))
+    import duplexPDF
 
 print(f"Starting DuplexPDF by Andreas B. (version {duplexPDF.__version__})")
 duplexPDF.Run()
