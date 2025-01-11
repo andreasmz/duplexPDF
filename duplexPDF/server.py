@@ -19,37 +19,92 @@ from cryptography.hazmat.primitives import serialization
 from .pdf_handling import DuplexPDF_PDFObject, DuplexPDF_Merge
 
 logger = logging.getLogger("duplexPDF")
-ftp = None
 
-def UploadToFTPReceiver(pdf: PdfWriter, name: str):
-    global logger, ftp
-    try:
-        files = ftp.nlst()
-        if f"{name}.pdf" in files:
-            logger.warning(f"File {name}.pdf already exists on the server. Skip")
-            return
-        with BytesIO() as bytes_stream:
-            pdf.write(bytes_stream)
-            bytes_stream.flush()
-            bytes_stream.seek(0)
-            ftp.storbinary(f"STOR {name}.pdf", bytes_stream)
-        logger.info(f"Uploaded merged {name}.pdf")    
-    except ftplib.all_errors as ex:
-        logger.error(f"Transmitting the file an error was raised: {str(ex)}")
-    finally:
-        pdf.close()
+class IOutgoing:
+    def UploadPDF(self, file_name: str, pdf: PdfWriter) -> bool:
+        pass
 
+class OutgoingFTP(IOutgoing):
+
+    def __init__(self, source_addr, ip, port, username, password, folder):
+        self.sourceAdress = source_addr
+        self.ip = ip
+        self.port = port
+        self.username = username
+        self.password = password
+        self.folder = folder
+
+    def Connect(self, func: Callable|None = None) -> bool:
+        global logger
+        logger.info("Connecting to FTP")
+        ftp = ftplib.FTP_TLS()
+        try:
+            ftp.connect(self.ip, self.port, source_address=self.sourceAdress)
+            ftp.auth()
+            ftp.prot_p()
+            ftp.login(user=self.username, passwd=self.password)
+            ftp.cwd(self.folder)
+            logger.debug(f"Outgoing FTP server welcome message: {ftp.getwelcome()}")
+            ftp.nlst() # Test if PORT cmd is working
+
+            if func is not None:
+                return func(ftp)
+        except ftplib.all_errors as ex:
+            logger.warning(f"There was an error on the outgoing FTP server connection: {str(ex)}")
+            return False
+        finally:
+            ftp.close()
+        return True
+    
+    def UploadFile(self, file_name: str, bytesstream: BytesIO) -> bool:
+        global logger
+        def _Upload(ftp: ftplib.FTP_TLS) -> bool:
+            try:
+                files = ftp.nlst()
+            except ftplib.all_errors as ex:
+                logger.warning(f"There was an error listing the files on the outgoing FTP server: {str(ex)}")
+                return False
+            
+            if file_name in files:
+                logger.warning(f"File {file_name} already exists on the server. Skip")
+                return False
+            
+            try:
+                ftp.storbinary(f"STOR {file_name}", bytesstream)
+            except ftplib.all_errors as ex:
+                logger.warning(f"There was an error storing the file on the outgoing FTP server: {str(ex)}")
+                return False
+            return True
+        return self.Connect(_Upload)
+        
+    
+    def UploadPDF(self, file_name: str, pdf: PdfWriter) -> bool:
+        global logger
+        try:
+            with BytesIO() as bytesstream:
+                pdf.write(bytesstream)
+                bytesstream.flush()
+                bytesstream.seek(0)
+                if self.UploadFile(file_name, bytesstream):
+                    logger.info(f"Uploaded merged {file_name}")   
+                    return True
+        except IOError as ex:
+            logger.error(f"There was an error handling the pdf stream")
+            return False
+        finally:
+            pdf.close()
+        return False
 
 class DuplexPDF_Server:
 
     max_tdelta = 10*60
 
-    def __init__(self, output_func: Callable):
+    def __init__(self, output_obj: IOutgoing):
         self._duplex1: DuplexPDF_PDFObject|None = None
         self._duplex2: DuplexPDF_PDFObject|None = None
-        if not isinstance(output_func, Callable):
-            raise ValueError(f"output_func must by of type Callable. You provided ({type(output_func)})")
-        self.output_func = output_func
+        if not isinstance(output_obj, IOutgoing):
+            raise ValueError(f"output_obj must by of type IOutgoing. You provided ({type(output_obj)})")
+        self.output_obj = output_obj
 
     @property
     def duplex1(self) -> DuplexPDF_PDFObject|None:
@@ -88,7 +143,7 @@ class DuplexPDF_Server:
             if merged_pdf is None:
                 return False
             logger.debug("Sending merged file to output function")
-            self.output_func(merged_pdf, merged_name)
+            self.output_obj.UploadPDF(f"{merged_name}.pdf", merged_pdf)
             merged_pdf.close()
             self.Clear()
         return True
@@ -110,6 +165,7 @@ class DuplexPDF_Server:
 duplexPDFServer = None
 
 class DuplexPDF_FTPHandler(TLS_FTPHandler):
+
     def on_file_received(self, file):
         global logger
         path = Path(file).resolve()
@@ -161,29 +217,32 @@ def Load_Certificate(path: Path) -> tuple[Path, Path]:
     return (path_crt, path_key) 
 
 def Run(cacheDir: Path):
-    global duplexPDFServer, logger, ftp
-    duplexPDFServer = DuplexPDF_Server(UploadToFTPReceiver)
+    global logger, duplexPDFServer
 
     ClearCache(cacheDir)
     path_crt, path_key = Load_Certificate(cacheDir)
 
     local_ip = socket.gethostbyname(socket.gethostname())
-    source_port = int(os.environ["duplexPDF_source_port"]) if "duplexPDF_source_port" in os.environ.keys() else None
+    nat_ip = os.environ["duplexPDF_nat_addr"] if "duplexPDF_nat_addr" in os.environ.keys() else None
+    source_port = int(os.environ["duplexPDF_source_port"]) if "duplexPDF_source_port" in os.environ.keys() and os.environ["duplexPDF_source_port"].strip() != "" else None
+    
 
     incoming_addr = os.environ["duplexPDF_incoming_addr"].split(":") if "duplexPDF_incoming_addr" in os.environ.keys() else ("", "")
+    outgoing_addr = os.environ["duplexPDF_outgoing_addr"].split(":")
     if len(incoming_addr) > 2:
         logger.error("Please provide a valid incoming address")
         return
-    server_ip = incoming_addr[0] if incoming_addr[0].strip() != "" else local_ip
-    incoming_ip = local_ip
-    incoming_port = int(incoming_addr[1]) if len(incoming_addr) == 2 and incoming_addr[1].strip() != "" else 1487
-
-    outgoing_addr = os.environ["duplexPDF_outgoing_addr"].split(":")
     if len(outgoing_addr) > 2:
         logger.error("Please provide a valid outgoingg address")
         return
+    
+    incoming_ip = incoming_addr[0] if incoming_addr[0].strip() != "" else local_ip
     outgoing_ip = outgoing_addr[0]
+    incoming_port = int(incoming_addr[1]) if len(incoming_addr) == 2 and incoming_addr[1].strip() != "" else 1487
     outgoing_port = int(outgoing_addr[1]) if len(outgoing_addr) == 2 and outgoing_addr[1].strip() != "" else 21
+
+    sourceAddr = (local_ip, source_port) if source_port is not None else None
+    sourceAddr = None
 
     passive_ports = None
     if "duplexPDF_incoming_passive_port_range" in os.environ.keys():
@@ -197,19 +256,11 @@ def Run(cacheDir: Path):
     outgoing_username = os.environ["duplexPDF_outgoing_username"]
     outgoing_password = os.environ["duplexPDF_outgoing_password"]
     outgoing_folder = os.environ["duplexPDF_outgoing_dir"]
-    try:
-        ftp = ftplib.FTP_TLS()
-        ftp.set_pasv(False)
-        sourceAdress = (local_ip, source_port) if source_port is not None else None
-        ftp.connect(outgoing_ip, outgoing_port, source_address=(sourceAdress))
-        ftp.auth()
-        ftp.prot_p()
-        ftp.login(user=outgoing_username, passwd=outgoing_password)
-        ftp.cwd(outgoing_folder)
-    except ftplib.all_errors as ex:
-        logger.error(f"Can't connect to FTP server for upload ({str(ex)})")
-        return False
-    logger.debug(f"FTP server welcome message: {ftp.getwelcome()}")
+
+    outgoingFTP = OutgoingFTP(source_addr=sourceAddr, ip=outgoing_ip, port=outgoing_port, username=outgoing_username, password=outgoing_password, folder=outgoing_folder)
+    if not outgoingFTP.Connect():
+        return
+    duplexPDFServer = DuplexPDF_Server(outgoingFTP)
 
     authorizer = DummyAuthorizer()
     authorizer.add_user(incoming_username, incoming_password, homedir=str(cacheDir), perm="w")
@@ -219,13 +270,13 @@ def Run(cacheDir: Path):
     handler.passive_ports = passive_ports
     handler.certfile = str(path_crt)
     handler.keyfile = str(path_key)
-    handler.masquerade_address = server_ip
+    handler.masquerade_address = nat_ip
     handler.banner = "duplexPDF Upload Server"
     
     server = FTPServer((incoming_ip, incoming_port), handler)
     server.max_cons = 64
     server.max_cons_per_ip = 32
 
-    logger.info(f"--Started duplexPDF server on {server.address[0]}:{server.address[1]}--")
+    logger.info(f"--Started duplexPDF server on {server.address[0]}:{server.address[1]}{f" (NAT address {nat_ip})" if nat_ip is not None else ""}--")
 
     server.serve_forever(handle_exit=True)

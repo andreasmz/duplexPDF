@@ -3,7 +3,7 @@ import sys
 import os
 from pathlib import Path
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 for name, desc in [("duplexPDF_cache", "a folder for the cache files"),
                       ("duplexPDF_log", "a folder for the log"),
@@ -20,10 +20,10 @@ for name, desc in [("duplexPDF_cache", "a folder for the cache files"),
 cache_dir = Path(os.environ["duplexPDF_cache"]).resolve()
 log_dir = Path(os.environ["duplexPDF_log"]).resolve()
 if not cache_dir.exists() or not cache_dir.is_dir():
-    print("Your provided cache path is not valid or does not exist")
+    print(f"Your provided cache path {cache_dir} is not valid or does not exist")
     exit()
 if not log_dir.exists() or not log_dir.is_dir():
-    print("Your provided log path is not valid or does not exist")
+    print(f"Your provided log path {log_dir} is not valid or does not exist")
     exit()    
 
 logging.getLogger("pypdf").setLevel(logging.CRITICAL)
