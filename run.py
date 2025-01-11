@@ -3,9 +3,7 @@
 import subprocess
 import sys
 
-print("Starting DuplexPDF by Andreas B.")
-
-min_version = "1.0.1" # Min Version for DuplexPDF
+min_version = "1.0.2" # Min Version for DuplexPDF
 
 try:
     import duplexPDF
@@ -25,3 +23,4 @@ try:
 except ModuleNotFoundError:
     print(subprocess.check_call([sys.executable, "-m", "pip", "install", "duplexPDF"]))
 
+print(f"Starting DuplexPDF by Andreas B. (version {duplexPDF.__version__})")
