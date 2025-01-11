@@ -20,7 +20,9 @@ try:
             break
         elif int(c1) > int(c2):
             break
+
 except ModuleNotFoundError:
     print(subprocess.check_call([sys.executable, "-m", "pip", "install", "duplexPDF"]))
 
 print(f"Starting DuplexPDF by Andreas B. (version {duplexPDF.__version__})")
+duplexPDF.Run()
