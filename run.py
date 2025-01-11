@@ -2,15 +2,26 @@
 
 import subprocess
 import sys
-from packaging.version import Version
 
 print("Starting DuplexPDF by Andreas B.")
+
+min_version = "1.0.1" # Min Version for DuplexPDF
 
 try:
     import duplexPDF
 
-    if Version(duplexPDF.__version__) <= Version("1.0.1"):
-        print(subprocess.check_call([sys.executable, "-m", "pip", "install", "duplexPDF", "--upgrade"]))
+    i = -1
+    while (i := i+1) < len(duplexPDF.__version__) and i < len(min_version):
+        c1: str = duplexPDF.__version__[i]
+        c2: str = min_version[i]
+        if not c1.isnumeric() or not c2.isnumeric():
+            continue
+        if int(c1) < int(c2):
+            print(f"Updating DuplexPDF from version {duplexPDF.__version__}, as it is older than the min. version {min_version}")
+            print(subprocess.check_call([sys.executable, "-m", "pip", "install", "duplexPDF", "--upgrade"]))
+            break
+        elif int(c1) > int(c2):
+            break
 except ModuleNotFoundError:
     print(subprocess.check_call([sys.executable, "-m", "pip", "install", "duplexPDF"]))
 
